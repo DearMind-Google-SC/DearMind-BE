@@ -1,6 +1,6 @@
 export enum EmotionType {
-    POSITIVE = 'POSITIVE',
-    DEPRESSED = 'DEPRESSED',
+    HAPPY = 'HAPPY',
+    GLOOMY = 'GLOOMY',
     ANXIOUS = 'ANXIOUS',
     ANGRY = 'ANGRY',
   }

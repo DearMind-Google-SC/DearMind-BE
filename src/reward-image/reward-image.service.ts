@@ -9,7 +9,7 @@ import { RewardHistory } from './interfaces/reward-history.interface';
 export class RewardImageService {
   constructor(private readonly firebaseService: FirebaseService) {}
 
-  // 🎁 AI 답례 그림 이미지 저장
+  // 🎁 AI 답례 그림 이미지 + 텍스트 일기 저장
   // - base64 이미지를 Firebase Storage에 업로드
   // - 보상 이력을 Firestore에 기록
   // - 사용자의 마지막 보상 streak을 Firestore에 업데이트
@@ -38,6 +38,7 @@ export class RewardImageService {
       .collection('reward_history')
       .add({
         imageUrl,
+        letter: dto.letter,
         givenAt: new Date(),
         streakAtGiven: dto.streak,
       });
@@ -50,7 +51,7 @@ export class RewardImageService {
     return { message: 'Reward image saved', imageUrl };
   }
 
-  // 📜 AI 답례 그림 보관함 조회
+  // 📜 AI 답례 보관함 조회
   // - 사용자의 reward_history 서브컬렉션을 내림차순으로 반환
   async getRewardHistory(uid: string): Promise<RewardHistory[]> {
     const firestore = this.firebaseService.getFirestore();

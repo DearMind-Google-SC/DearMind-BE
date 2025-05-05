@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { FirebaseService } from '../firebase/firebase.service';
 import { SaveRewardImageDto } from './dto/save-reward-image.dto';
 import * as admin from 'firebase-admin';
 import { v4 as uuidv4 } from 'uuid';
 import { RewardHistory } from './interfaces/reward-history.interface';
+import { InternalServerErrorException } from '@nestjs/common';
 
 @Injectable()
 export class RewardImageService {
@@ -28,7 +29,7 @@ export class RewardImageService {
     // 이미지 저장
     await file.save(imageBuffer, {
       metadata: { contentType: 'image/png' },
-      public: true, // 공개 접근 가능
+      public: true,
     });
 
     const imageUrl = `https://storage.googleapis.com/${storage.name}/${filename}`;
@@ -39,8 +40,10 @@ export class RewardImageService {
       .add({
         imageUrl,
         letter: dto.letter,
+        style: dto.style ?? null,
         givenAt: new Date(),
         streakAtGiven: dto.streak,
+        liked: false,
       });
 
     // 마지막 보상 streak 업데이트
@@ -51,17 +54,65 @@ export class RewardImageService {
     return { message: 'Reward image saved', imageUrl };
   }
 
+  private mapDocToReward = (doc: FirebaseFirestore.QueryDocumentSnapshot): RewardHistory => {
+    const data = doc.data();
+    return {
+      imageUrl: data.imageUrl,
+      letter: data.letter,
+      givenAt: data.givenAt,
+      streakAtGiven: data.streakAtGiven,
+      liked: data.liked,
+      style: data.style,
+    };
+  };
+
   // 📜 AI 답례 보관함 조회
   // - 사용자의 reward_history 서브컬렉션을 내림차순으로 반환
   async getRewardHistory(uid: string): Promise<RewardHistory[]> {
-    const firestore = this.firebaseService.getFirestore();
-    const snapshot = await firestore
+    const snapshot = await this.firebaseService.getFirestore()
       .collection('users')
       .doc(uid)
       .collection('reward_history')
       .orderBy('givenAt', 'desc')
       .get();
 
-    return snapshot.docs.map(doc => doc.data() as RewardHistory);
+    return snapshot.docs.map(this.mapDocToReward);
+  }
+
+  // ❤️ AI 답례 좋아요 처리
+  async likeReward(uid: string, rewardId: string) {
+    const ref = this.firebaseService.getFirestore()
+      .collection('users')
+      .doc(uid)
+      .collection('reward_history')
+      .doc(rewardId);
+  
+    const doc = await ref.get();
+    if (!doc.exists) {
+      throw new NotFoundException('해당 보상이 존재하지 않습니다.');
+    }
+  
+    const data = doc.data();
+    if (!data) {
+      throw new InternalServerErrorException('문서를 불러올 수 없습니다.');
+    }
+  
+    const currentLiked = data.liked ?? false;
+    await ref.update({ liked: !currentLiked });
+  
+    return { message: currentLiked ? '좋아요 취소됨' : '좋아요 설정됨' };
+  }
+
+  // 🧡 좋아요한 AI 답례만 조회
+  async getLikedRewards(uid: string): Promise<RewardHistory[]> {
+    const snapshot = await this.firebaseService.getFirestore()
+      .collection('users')
+      .doc(uid)
+      .collection('reward_history')
+      .where('liked', '==', true)
+      .orderBy('givenAt', 'desc')
+      .get();
+
+    return snapshot.docs.map(this.mapDocToReward);
   }
 }

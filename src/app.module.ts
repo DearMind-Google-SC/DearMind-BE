@@ -8,6 +8,7 @@ import { ConfigModule } from '@nestjs/config';
 import { EmotionRecordModule } from './emotion-record/emotion-record.module';
 import { SelfcareModule } from './selfcare/selfcare.module';
 import { RewardImageModule } from './reward-image/reward-image.module';
+import { EmergencyModule } from './emergency/emergency.module';
 
 @Module({
   controllers: [AppController, UserController],
@@ -21,6 +22,7 @@ import { RewardImageModule } from './reward-image/reward-image.module';
     EmotionRecordModule,
     SelfcareModule,
     RewardImageModule,
+    EmergencyModule,
   ],
 })
 export class AppModule {}

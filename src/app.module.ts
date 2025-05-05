@@ -9,6 +9,7 @@ import { EmotionRecordModule } from './emotion-record/emotion-record.module';
 import { SelfcareModule } from './selfcare/selfcare.module';
 import { RewardImageModule } from './reward-image/reward-image.module';
 import { EmergencyModule } from './emergency/emergency.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   controllers: [AppController, UserController],
@@ -23,6 +24,7 @@ import { EmergencyModule } from './emergency/emergency.module';
     SelfcareModule,
     RewardImageModule,
     EmergencyModule,
+    ChatModule,
   ],
 })
 export class AppModule {}

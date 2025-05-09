@@ -1,10 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, InternalServerErrorException } from '@nestjs/common';
 import { FirebaseService } from '../firebase/firebase.service';
 import { SaveRewardImageDto } from './dto/save-reward-image.dto';
 import * as admin from 'firebase-admin';
 import { v4 as uuidv4 } from 'uuid';
 import { RewardHistory } from './interfaces/reward-history.interface';
-import { InternalServerErrorException } from '@nestjs/common';
+import { RewardStyle } from './enums/reward-style.enum';
 
 @Injectable()
 export class RewardImageService {
@@ -40,7 +40,7 @@ export class RewardImageService {
       .add({
         imageUrl,
         letter: dto.letter,
-        style: dto.style ?? null,
+        style: dto.style ?? this.getRandomStyle(),
         givenAt: new Date(),
         streakAtGiven: dto.streak,
         liked: false,
@@ -52,6 +52,13 @@ export class RewardImageService {
     }, { merge: true });
 
     return { message: 'Reward image saved', imageUrl };
+  }
+
+  // AI 답례 그림 선호 스타일 -> Do it randomly 선택 시 랜덤 스타일 할당
+  private getRandomStyle(): RewardStyle {
+    const styles = Object.values(RewardStyle);
+    const idx = Math.floor(Math.random() * styles.length);
+    return styles[idx];
   }
 
   private mapDocToReward = (doc: FirebaseFirestore.QueryDocumentSnapshot): RewardHistory => {
@@ -79,6 +86,33 @@ export class RewardImageService {
     return snapshot.docs.map(this.mapDocToReward);
   }
 
+  // 월별 AI 답례 리스트 조회 (최신순 정렬)
+  async getMonthlyRewardHistory(uid: string, year: number, month: number): Promise<RewardHistory[]> {
+    const firestore = this.firebaseService.getFirestore();
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0, 23, 59, 59, 999);
+
+    const snapshot = await firestore.collection('users')
+      .doc(uid)
+      .collection('reward_history')
+      .where('givenAt', '>=', start)
+      .where('givenAt', '<=', end)
+      .orderBy('givenAt', 'desc')
+      .get();
+
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        imageUrl: data.imageUrl,
+        letter: data.letter,
+        style: data.style,
+        givenAt: data.givenAt,
+        streakAtGiven: data.streakAtGiven,
+        liked: data.liked,
+      };
+    });
+  }
+
   // ❤️ AI 답례 좋아요 처리
   async likeReward(uid: string, rewardId: string) {
     const ref = this.firebaseService.getFirestore()
@@ -103,7 +137,7 @@ export class RewardImageService {
     return { message: currentLiked ? '좋아요 취소됨' : '좋아요 설정됨' };
   }
 
-  // 🧡 좋아요한 AI 답례만 조회
+  // 🧡 좋아요한 AI 답례만 조회 (최신순 정렬)
   async getLikedRewards(uid: string): Promise<RewardHistory[]> {
     const snapshot = await this.firebaseService.getFirestore()
       .collection('users')
@@ -114,5 +148,12 @@ export class RewardImageService {
       .get();
 
     return snapshot.docs.map(this.mapDocToReward);
+  }
+
+  // AI 답례 스타일 예시 이미지 조회
+  async getStyleSamples() {
+    const firestore = this.firebaseService.getFirestore();
+    const snapshot = await firestore.collection('style_samples').get();
+    return snapshot.docs.map(doc => doc.data());
   }
 }

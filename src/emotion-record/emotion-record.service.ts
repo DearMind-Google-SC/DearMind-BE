@@ -44,25 +44,27 @@ export class EmotionRecordService {
     const createdAt = new Date();
 
     // Firestore에 감정기록 저장
-    const docRef = await firestore.collection('diary').add({
+    await firestore.collection('diary').add({
       uid,
       imageUrl,
       text: body.text ?? null,
       createdAt,
     });
 
-    // 연속 기록 계산 후 사용자 문서에 streak 및 lastRecordedDate 업데이트
+    // 연속 기록 계산 후 사용자 문서에 streak 및 lastRecordedDate 업데이트, 연속 3일 기록일 때마다 shouldReward:True를 반환 -> 프론트에서 AI 답례 팝업 띄움
     const streakInfo = await this.calculateStreak(uid);
+    const todayStr = createdAt.toISOString().split('T')[0];
+
     await firestore.collection('users').doc(uid).set({
       streak: streakInfo.streak,
-      lastRecordedDate: createdAt.toISOString().split('T')[0],
+      lastRecordedDate: todayStr,
     }, { merge: true });
 
     return {
-        message: '감정 기록 저장 완료',
-        recordId: docRef.id,
-        imageUrl,
-      };
+      message: '감정 기록 저장 완료',
+      imageUrl,
+      shouldReward: streakInfo.streak % 3 === 0,
+    };
   }
 
   // 감정 타입 업데이트
@@ -127,6 +129,29 @@ export class EmotionRecordService {
     if (snapshot.empty) {
       throw new NotFoundException('해당 날짜의 감정 기록이 없습니다.');
     }
+
+    return snapshot.docs.map(doc => {
+      const data = doc.data() as EmotionRecord;
+      return {
+        imageUrl: data.imageUrl,
+        text: data.text,
+        createdAt: data.createdAt.toDate(),
+      };
+    });
+  }
+
+  // 특정 월의 감정 기록 리스트 조회 (최신순 정렬)
+  async getRecordsByMonth(uid: string, year: number, month: number) {
+    const firestore = this.firebaseService.getFirestore();
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0, 23, 59, 59, 999);
+
+    const snapshot = await firestore.collection('diary')
+      .where('uid', '==', uid)
+      .where('createdAt', '>=', start)
+      .where('createdAt', '<=', end)
+      .orderBy('createdAt', 'desc')
+      .get();
 
     return snapshot.docs.map(doc => {
       const data = doc.data() as EmotionRecord;
@@ -248,41 +273,33 @@ export class EmotionRecordService {
   // 월별 감정 타입별 개수 조회 (개수 순 정렬)
   async getMonthlyEmotionTypeCount(uid: string, year: number, month: number) {
     const firestore = this.firebaseService.getFirestore();
-  
-    const start = new Date(year, month - 1, 1, 0, 0, 0); // 1일 00시
-    const end = new Date(year, month, 0, 23, 59, 59, 999); // 마지막날 23시 59분
-  
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0, 23, 59, 59, 999);
+
     const snapshot = await firestore
       .collection('diary')
       .where('uid', '==', uid)
       .where('createdAt', '>=', start)
       .where('createdAt', '<=', end)
       .get();
-  
-    if (snapshot.empty) {
-      return { emotionTypeCounts: [] };
-    }
-  
+
     const counter: Record<EmotionType, number> = {
       HAPPY: 0,
       GLOOMY: 0,
       ANGRY: 0,
       ANXIOUS: 0,
     };
-  
+
     snapshot.forEach(doc => {
       const data = doc.data();
-      if (data.emotionType) {
-        counter[data.emotionType as EmotionType]++;
-      }
+      if (data.emotionType) counter[data.emotionType as EmotionType]++;
     });
-  
-    const sorted = Object.entries(counter)
-      .filter(([, count]) => count > 0)
-      .sort((a, b) => b[1] - a[1])
-      .map(([emotionType, count]) => ({ emotionType, count }));
-  
-    return { emotionTypeCounts: sorted };
+
+    return {
+      emotionTypeCounts: Object.entries(counter)
+        .sort((a, b) => b[1] - a[1])
+        .map(([emotionType, count]) => ({ emotionType, count }))
+    };
   }
 
   // Fisher-Yates 셔플 알고리즘

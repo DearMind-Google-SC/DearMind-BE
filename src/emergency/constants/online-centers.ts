@@ -15,7 +15,7 @@ export const ONLINE_COUNSELING_CENTERS = [
       name: '카카오톡 플러스친구 - 정신건강',
       link: 'https://pf.kakao.com/_mentalhealth',
       phone: null,
-      availableTime: '상시 운영',
+      availableTime: '24시간',
     },
   ];
   

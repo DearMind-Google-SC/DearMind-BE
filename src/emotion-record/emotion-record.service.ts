@@ -26,7 +26,7 @@ export class EmotionRecordService {
   // 감정 기록 저장 (이미지 업로드 + Firestore 저장 + streak 업데이트)
   async saveRecord(uid: string, body: CreateEmotionRecordDto) {
     const firestore = this.firebaseService.getFirestore();
-    const storage = admin.storage().bucket();
+    const storage = this.firebaseService.getStorage();
 
     // base64 이미지 문자열에서 헤더 제거 후 버퍼로 변환
     const base64Data = body.image.replace(/^data:image\/\w+;base64,/, '');

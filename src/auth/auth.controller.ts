@@ -5,6 +5,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { GoogleLoginDto } from './dto/google-login.dto';
 import { Request } from 'express';
 import {
   ApiBearerAuth,
@@ -58,6 +59,26 @@ export class AuthController {
   login(@Body() dto: LoginDto) {
     return this.authService.signIn(dto);
   }
+
+  @Post('google-login')
+  @ApiOperation({ summary: 'Google OAuth 로그인' })
+  @ApiResponse({ status: 200, description: '로그인 성공' })
+  @ApiResponse({ status: 401, description: '유효하지 않은 Firebase ID Token' })
+  @ApiBody({
+    type: GoogleLoginDto,
+    examples: {
+      example1: {
+        summary: 'Google OAuth 로그인 예시',
+        value: {
+          idToken: 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjE2ZGY...',
+        },
+      },
+    },
+  })
+  googleLogin(@Body() dto: GoogleLoginDto) {
+    return this.authService.googleLogin(dto);
+  }
+
 
   @Post('test-login')
   @ApiOperation({ summary: '테스트용 로그인 (idToken 발급)' })

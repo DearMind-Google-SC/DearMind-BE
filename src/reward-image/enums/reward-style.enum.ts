@@ -1,6 +1,6 @@
 export enum RewardStyle {
-    SKETCH = 'sketch',
-    OIL_PAINTING = 'oil_painting',
     WATERCOLOR = 'watercolor',
-    LINE_DRAWING = 'line_drawing',
+    PENCIL_DRAWING = 'pencil_drawing',
+    OIL_PAINTING = 'oil_painting',
+    COLORED_SKETCH = 'colored_sketch',
 }

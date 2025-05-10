@@ -4,6 +4,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { GoogleLoginDto } from './dto/google-login.dto';
 import { DecodedIdToken } from 'firebase-admin/auth';
 import axios from 'axios';
 
@@ -80,6 +81,33 @@ export class AuthService {
       console.error('[Firebase 로그인 실패]', err?.message);
       throw new UnauthorizedException('이메일 또는 비밀번호 오류');
     }
+  }
+
+  // Google OAuth 로그인
+  async googleLogin(dto: GoogleLoginDto) {
+    const auth = this.firebaseService.getAuth();
+    const firestore = this.firebaseService.getFirestore();
+
+    const decodedToken = await auth.verifyIdToken(dto.idToken);
+
+    const userRef = firestore.collection('users').doc(decodedToken.uid);
+    const userDoc = await userRef.get();
+
+    if (!userDoc.exists) {
+      await userRef.set({
+        uid: decodedToken.uid,
+        email: decodedToken.email,
+        name: decodedToken.name ?? null,
+        provider: 'google',
+        createdAt: new Date(),
+      });
+    }
+
+    return {
+      uid: decodedToken.uid,
+      email: decodedToken.email,
+      name: decodedToken.name ?? null,
+    };
   }
 
   // 로그인된 유저 정보 조회

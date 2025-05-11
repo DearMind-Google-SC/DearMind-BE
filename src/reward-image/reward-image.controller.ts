@@ -12,7 +12,6 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { RewardImageService } from './reward-image.service';
-import { SaveRewardImageDto } from './dto/save-reward-image.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import {
   ApiBearerAuth,
@@ -23,21 +22,42 @@ import {
   ApiParam,
   ApiQuery,
 } from '@nestjs/swagger';
+import { RewardStyle } from './enums/reward-style.enum';
 
 @ApiTags('AI Reward')
 @Controller('reward')
 export class RewardImageController {
   constructor(private readonly rewardService: RewardImageService) {}
 
-  @Post()
+  @Post('generate')
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'AI 답례 저장 (이미지+일기+스타일)' })
-  @ApiBody({ type: SaveRewardImageDto })
-  @ApiResponse({ status: 201, description: 'AI 답례 저장 성공' })
-  @ApiResponse({ status: 400, description: '요청 데이터 오류' })
-  async saveReward(@Req() req: Request, @Body() body: SaveRewardImageDto) {
-    return this.rewardService.saveRewardImage(req.user!.uid, body);
+  @ApiOperation({ summary: 'AI 답례 생성, 저장 및 반환' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        style: { type: 'string', enum: Object.values(RewardStyle) },
+        images: { type: 'array', items: { type: 'string' } },
+        diaries: { type: 'array', items: { type: 'string' } },
+        streak: { type: 'integer', example: 3 },
+      },
+      required: ['style', 'images', 'diaries', 'streak'],
+    },
+  })
+  @ApiResponse({ status: 201, description: 'AI 답례 생성 및 저장 성공' })
+  @ApiResponse({ status: 500, description: 'AI 생성 실패 또는 저장 실패' })
+  async generateReward(
+    @Req() req: Request,
+    @Body() body: { style: RewardStyle; images: string[]; diaries: string[]; streak: number },
+  ) {
+    return this.rewardService.generateAndSaveReward(
+      req.user!.uid,
+      body.style,
+      body.images,
+      body.diaries,
+      body.streak,
+    );
   }
 
   @Get()

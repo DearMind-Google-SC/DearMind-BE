@@ -11,6 +11,7 @@ import { SelfcareModule } from './selfcare/selfcare.module';
 import { RewardImageModule } from './reward-image/reward-image.module';
 import { EmergencyModule } from './emergency/emergency.module';
 import { ChatModule } from './chat/chat.module';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
   controllers: [AppController, UserController],
@@ -25,6 +26,7 @@ import { ChatModule } from './chat/chat.module';
     RewardImageModule,
     EmergencyModule,
     ChatModule,
+    HttpModule,
   ],
 })
 export class AppModule {}

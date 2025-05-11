@@ -7,10 +7,10 @@ import {
     Get,
     Query,
     Param,
-    Patch,
-    BadRequestException,
     Delete,
     NotFoundException,
+    BadRequestException,
+    Patch,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { EmotionRecordService } from './emotion-record.service';
@@ -39,18 +39,31 @@ export class EmotionRecordController {
     @Post()
     @UseGuards(AuthGuard)
     @ApiBearerAuth()
-    @ApiOperation({ summary: '감정 기록 저장' })
-    @ApiResponse({ status: 201, description: '감정 기록 저장 성공' })
-    @ApiResponse({ status: 400, description: '잘못된 요청 데이터' })
+    @ApiOperation({ summary: '감정 기록 저장 및 감정 분석 결과 반환' })
+    @ApiResponse({ status: 201, description: '감정 기록 저장 성공 및 감정 분석 결과 반환' })
+    @ApiResponse({ status: 400, description: '요청 형식 오류 또는 누락된 필드' })
+    @ApiResponse({ status: 500, description: 'AI 감정 분석 실패' })
     @ApiBody({ type: CreateEmotionRecordDto })
     async createRecord(@Req() req: Request, @Body() body: CreateEmotionRecordDto) {
         return this.emotionService.saveRecord(req.user!.uid, body);
     }
 
+    @Post(':recordId/reanalyze')
+    @UseGuards(AuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: '감정 재분석 요청 및 감정 타입 반환' })
+    @ApiParam({ name: 'recordId', required: true })
+    @ApiResponse({ status: 200, description: '재분석 성공 및 감정 타입 반환' })
+    @ApiResponse({ status: 404, description: '기록 없음 또는 권한 없음' })
+    @ApiResponse({ status: 500, description: 'AI 분석 실패' })
+    async reanalyzeEmotion(@Req() req: Request, @Param('recordId') recordId: string) {
+        return this.emotionService.reanalyzeEmotion(req.user!.uid, recordId);
+    }
+
     @Patch(':recordId/emotion-type')
     @UseGuards(AuthGuard)
     @ApiBearerAuth()
-    @ApiOperation({ summary: '감정 타입 업데이트' })
+    @ApiOperation({ summary: '사용자가 수동으로 감정 타입 업데이트' })
     @ApiBody({ type: UpdateEmotionTypeDto })
     @ApiResponse({ status: 200, description: '감정 타입 업데이트 성공' })
     @ApiResponse({ status: 400, description: '요청 형식 오류' })

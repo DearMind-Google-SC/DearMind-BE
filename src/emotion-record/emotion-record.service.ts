@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { FirebaseService } from '../firebase/firebase.service';
 import { v4 as uuidv4 } from 'uuid';
 import * as admin from 'firebase-admin';
 import { CreateEmotionRecordDto } from './dto/create-emotion-record.dto';
 import { UpdateEmotionTypeDto } from './dto/update-emotion-type.dto';
 import { EmotionType } from '../selfcare/enums/emotion-type.enum';
+import axios from 'axios';
 
 // 감정 기록 인터페이스 정의
 interface EmotionRecord {
@@ -12,6 +13,8 @@ interface EmotionRecord {
   imageUrl: string; // 저장된 이미지 URL
   text?: string; // 텍스트 일기 (선택)
   createdAt: admin.firestore.Timestamp; // 생성 시간
+  emotionType?: EmotionType;
+  severity?: string;
 }
 
 // 주제 질문 인터페이스 정의
@@ -23,7 +26,7 @@ interface TopicDocument {
 export class EmotionRecordService {
   constructor(private readonly firebaseService: FirebaseService) {}
 
-  // 감정 기록 저장 (이미지 업로드 + Firestore 저장 + streak 업데이트)
+  // 감정 기록 저장 (이미지 업로드 + Firestore 저장 + streak 업데이트) + AI 감정 분석 호출 + 감정 타입 저장
   async saveRecord(uid: string, body: CreateEmotionRecordDto) {
     const firestore = this.firebaseService.getFirestore();
     const storage = this.firebaseService.getStorage();
@@ -43,13 +46,46 @@ export class EmotionRecordService {
     const imageUrl = `https://storage.googleapis.com/${storage.name}/${filename}`;
     const createdAt = new Date();
 
-    // Firestore에 감정기록 저장
-    const newDoc = await firestore.collection('diary').add({
+    const newDocRef = firestore.collection('diary').doc();
+
+    // 감정기록 우선 저장 (emotionType 없음)
+    await newDocRef.set({
       uid,
       imageUrl,
       text: body.text ?? null,
       createdAt,
     });
+
+    // AI 감정 분석 호출
+    // eslint-disable-next-line prefer-const
+    let emotionType: EmotionType | null = null;
+    let severity: string | null = null;
+    let subject = '';
+    try {
+      // 가장 최근 추천된 주제 질문 가져오기
+      const topicSnapshot = await firestore
+        .collection('users')
+        .doc(uid)
+        .collection('topic_recommendation')
+        .orderBy('recommendedAt', 'desc')
+        .limit(1)
+        .get();
+
+      subject = topicSnapshot.empty ? '' : topicSnapshot.docs[0].data().topic;
+
+      const { data } = await axios.post(`${process.env.AI_SERVER_URL}/ai/analyze`, {
+        image: base64Data,
+        subject,
+        text: body.text,
+      });
+
+      emotionType = data.emotion as EmotionType;
+      severity = data.severity;
+      
+      await newDocRef.update({ emotionType, severity });
+    } catch (err) {
+      console.error('AI 감정 분석 실패:', err);
+    }
 
     // 연속 기록 계산 후 사용자 문서에 streak 및 lastRecordedDate 업데이트, 연속 3일 기록일 때마다 shouldReward:True를 반환 -> 프론트에서 AI 답례 팝업 띄움
     const streakInfo = await this.calculateStreak(uid);
@@ -62,13 +98,67 @@ export class EmotionRecordService {
 
     return {
       message: '감정 기록 저장 완료',
-      recordId: newDoc.id,
+      recordId: newDocRef.id,
       imageUrl,
+      text: body.text ?? null,
+      createdAt,
+      emotionType,
+      subject,
+      severity,
       shouldReward: streakInfo.streak % 3 === 0,
     };
   }
 
-  // 감정 타입 업데이트
+  // 감정 재분석 요청 → 분석 결과 업데이트 및 반환
+  async reanalyzeEmotion(uid: string, recordId: string) {
+    const firestore = this.firebaseService.getFirestore();
+    const ref = firestore.collection('diary').doc(recordId);
+    const doc = await ref.get();
+    
+    if (!doc.exists) throw new NotFoundException('기록 없음');
+    const data = doc.data();
+    if (data?.uid !== uid) throw new NotFoundException('권한 없음');
+    
+    try {
+      // 주제 질문은 최신 추천 기반으로 재분석 요청
+      const topicSnapshot = await firestore
+      .collection('users')
+      .doc(uid)
+      .collection('topic_recommendation')
+      .orderBy('recommendedAt', 'desc')
+      .limit(1)
+      .get();
+      
+      const subject = topicSnapshot.empty ? '' : topicSnapshot.docs[0].data().topic;
+      
+      // 🔥 이미지 URL → base64 변환
+      const imageUrl = data.imageUrl;
+      const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+      const base64Image = Buffer.from(response.data).toString('base64');
+      
+      const { data: aiResult } = await axios.post(`${process.env.AI_SERVER_URL}/ai/analyze`, {
+        image: base64Image,
+        subject,
+        text: data.text,
+      });
+
+      const emotionType = aiResult.emotion as EmotionType;
+      const severity = aiResult.severity ?? null;
+
+      await ref.update({ emotionType, severity });
+      
+      return {
+        message: '감정 재분석 완료',
+        emotionType,
+        severity,
+      };
+    } catch (err) {
+      console.error('AI 분석 실패:', err);
+      throw new InternalServerErrorException('AI 분석 실패');
+    }
+  }
+
+  // 감정 타입 업데이트 -> 사용자가 감정 타입 수동 수정할 때 사용
   async updateEmotionType(uid: string, recordId: string, dto: UpdateEmotionTypeDto) {
     const firestore = this.firebaseService.getFirestore();
     const recordRef = firestore.collection('diary').doc(recordId);

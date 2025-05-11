@@ -2,7 +2,10 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsString } from 'class-validator';
 
 export class SendChatDto {
-  @ApiProperty({ example: '오늘 너무 우울해.' })
+  @ApiProperty({
+    description: '사용자 입력 메시지',
+    example: '오늘 하루가 너무 힘들었어요.',
+  })
   @IsString()
   message: string;
 }

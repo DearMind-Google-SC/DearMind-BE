@@ -1,32 +1,49 @@
 import { Injectable, NotFoundException, InternalServerErrorException } from '@nestjs/common';
 import { FirebaseService } from '../firebase/firebase.service';
-import { SaveRewardImageDto } from './dto/save-reward-image.dto';
 import * as admin from 'firebase-admin';
 import { v4 as uuidv4 } from 'uuid';
 import { RewardHistory } from './interfaces/reward-history.interface';
 import { RewardStyle } from './enums/reward-style.enum';
+import axios from 'axios';
 
 @Injectable()
 export class RewardImageService {
   constructor(private readonly firebaseService: FirebaseService) {}
 
-  // 🎁 AI 답례 그림 이미지 + 텍스트 일기 저장
-  // - base64 이미지를 Firebase Storage에 업로드
-  // - 보상 이력을 Firestore에 기록
-  // - 사용자의 마지막 보상 streak을 Firestore에 업데이트
-  async saveRewardImage(uid: string, dto: SaveRewardImageDto) {
-    const storage = admin.storage().bucket();
+  // 🎁 AI 답례 생성 요청 → 이미지 저장 및 결과 반환
+  async generateAndSaveReward(
+    uid: string,
+    style: RewardStyle,
+    images: string[],
+    diaries: string[],
+    streak: number,
+  ) {
     const firestore = this.firebaseService.getFirestore();
+    const storage = admin.storage().bucket();
 
-    // base64 → Buffer 변환
-    const base64Data = dto.image.replace(/^data:image\/\w+;base64,/, '');
+    let base64Image: string;
+    let letter: string;
+
+    try {
+      const { data } = await axios.post(`${process.env.AI_SERVER_URL}/ai/reward`, {
+        images,
+        diaries,
+        style,
+      });
+
+      base64Image = data.image;
+      letter = data.letter;
+    } catch (error) {
+      console.error('AI 답례 생성 실패:', error);
+      throw new InternalServerErrorException('AI 답례 생성 실패');
+    }
+
+    // 이미지 파일로 변환 후 Firebase Storage에 업로드
+    const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
     const imageBuffer = Buffer.from(base64Data, 'base64');
-
-    // 파일명 및 저장 경로 설정
     const filename = `reward/${uid}/${uuidv4()}.png`;
     const file = storage.file(filename);
 
-    // 이미지 저장
     await file.save(imageBuffer, {
       metadata: { contentType: 'image/png' },
       public: true,
@@ -34,24 +51,24 @@ export class RewardImageService {
 
     const imageUrl = `https://storage.googleapis.com/${storage.name}/${filename}`;
 
-    // Firestore에 보상 기록 추가
+    // Firestore에 보상 기록 저장
     await firestore.collection('users').doc(uid)
       .collection('reward_history')
       .add({
         imageUrl,
-        letter: dto.letter,
-        style: dto.style ?? this.getRandomStyle(),
+        letter,
+        style,
         givenAt: new Date(),
-        streakAtGiven: dto.streak,
+        streakAtGiven: streak,
         liked: false,
       });
 
     // 마지막 보상 streak 업데이트
     await firestore.collection('users').doc(uid).set({
-      lastRewardStreak: dto.streak
+      lastRewardStreak: streak,
     }, { merge: true });
 
-    return { message: 'Reward image saved', imageUrl };
+    return { message: 'Reward generated and saved', imageUrl, letter };
   }
 
   // AI 답례 그림 선호 스타일 -> Do it randomly 선택 시 랜덤 스타일 할당

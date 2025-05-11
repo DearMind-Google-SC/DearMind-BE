@@ -23,12 +23,16 @@ export class EmotionComboIconController {
     name: 'emotions',
     required: true,
     isArray: true,
-    enum: EmotionType,
-    description: '감정 타입 리스트 (HAPPY, GLOOMY, ANGRY, ANXIOUS 중 최대 4개)',
+    type: String,
+    description: '감정 타입 리스트 (쉼표로 구분된 문자열 배열 또는 여러 쿼리 파라미터)',
   })
   @ApiResponse({ status: 200, description: '조합 이미지 반환 성공' })
   @ApiResponse({ status: 404, description: '해당 조합 이미지 없음' })
-  async getComboIcon(@Query('emotions') emotions: EmotionType[]) {
-    return this.comboService.getCombinationIcon(emotions);
+  async getComboIcon(@Query('emotions') emotions: string | string[]) {
+    const emotionArray = Array.isArray(emotions)
+    ? emotions
+    : emotions.split(',');
+    return this.comboService.getCombinationIcon(emotionArray as EmotionType[])
   }
+
 }

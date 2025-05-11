@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { FirebaseService } from '../firebase/firebase.service';
 import { v4 as uuidv4 } from 'uuid';
 import * as admin from 'firebase-admin';
@@ -44,7 +44,7 @@ export class EmotionRecordService {
     const createdAt = new Date();
 
     // Firestore에 감정기록 저장
-    await firestore.collection('diary').add({
+    const newDoc = await firestore.collection('diary').add({
       uid,
       imageUrl,
       text: body.text ?? null,
@@ -62,6 +62,7 @@ export class EmotionRecordService {
 
     return {
       message: '감정 기록 저장 완료',
+      recordId: newDoc.id,
       imageUrl,
       shouldReward: streakInfo.streak % 3 === 0,
     };
@@ -80,6 +81,10 @@ export class EmotionRecordService {
     const data = recordDoc.data();
     if (data?.uid !== uid) {
       throw new NotFoundException('권한이 없는 감정 기록입니다.');
+    }
+
+    if (!dto.emotionType) {
+      throw new BadRequestException('emotionType 값이 누락되었습니다.');
     }
   
     await recordRef.update({
@@ -105,6 +110,7 @@ export class EmotionRecordService {
     return snapshot.docs.map(doc => {
       const data = doc.data() as EmotionRecord;
       return {
+        recordId: doc.id,
         imageUrl: data.imageUrl,
         text: data.text,
         createdAt: data.createdAt.toDate(),
@@ -133,6 +139,7 @@ export class EmotionRecordService {
     return snapshot.docs.map(doc => {
       const data = doc.data() as EmotionRecord;
       return {
+        recordId: doc.id,
         imageUrl: data.imageUrl,
         text: data.text,
         createdAt: data.createdAt.toDate(),
@@ -156,6 +163,7 @@ export class EmotionRecordService {
     return snapshot.docs.map(doc => {
       const data = doc.data() as EmotionRecord;
       return {
+        recordId: doc.id,
         imageUrl: data.imageUrl,
         text: data.text,
         createdAt: data.createdAt.toDate(),

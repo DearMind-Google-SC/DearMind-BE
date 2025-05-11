@@ -7,7 +7,7 @@ import * as admin from 'firebase-admin';
 export class ChatService {
   constructor(private readonly firebaseService: FirebaseService) {}
 
-  // 사용자 메시지 저장
+  // 사용자 메시지 저장 및 반환
   async saveUserMessage(uid: string, message: string): Promise<ChatMessage> {
     const firestore = this.firebaseService.getFirestore();
     const data: ChatMessage = {
@@ -16,14 +16,11 @@ export class ChatService {
       timestamp: new Date(),
     };
 
-    await firestore.collection('users').doc(uid)
-      .collection('chat_history')
-      .add(data);
-
+    await firestore.collection('users').doc(uid).collection('chat_history').add(data);
     return data;
   }
 
-  // AI 응답 저장
+  // AI 응답 저장 및 반환
   async saveAIMessage(uid: string, message: string): Promise<ChatMessage> {
     const firestore = this.firebaseService.getFirestore();
     const data: ChatMessage = {
@@ -32,10 +29,7 @@ export class ChatService {
       timestamp: new Date(),
     };
 
-    await firestore.collection('users').doc(uid)
-      .collection('chat_history')
-      .add(data);
-
+    await firestore.collection('users').doc(uid).collection('chat_history').add(data);
     return data;
   }
 
@@ -47,14 +41,14 @@ export class ChatService {
       .orderBy('timestamp', 'desc')
       .limit(20)
       .get();
-  
-      return snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          role: data.role,
-          content: data.content,
-          timestamp: (data.timestamp as admin.firestore.Timestamp).toDate(),
-        };
-      });
+
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        role: data.role,
+        content: data.content,
+        timestamp: (data.timestamp as admin.firestore.Timestamp).toDate(),
+      };
+    });
   }
 }

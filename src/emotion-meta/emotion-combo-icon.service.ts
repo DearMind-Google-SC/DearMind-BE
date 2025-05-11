@@ -9,20 +9,17 @@ export class EmotionComboIconService {
   async getCombinationIcon(emotions: EmotionType[]): Promise<{ imageUrl: string }> {
     const firestore = this.firebaseService.getFirestore();
 
-    // 알파벳 순 정렬
-    const sorted = [...emotions].sort();
+    // 알파벳 순 정렬 후 문자열 결합
+    const sortedKey = [...emotions].sort().join('_'); // 예: ['ANGRY', 'HAPPY'] → 'ANGRY_HAPPY'
 
-    const snapshot = await firestore
-      .collection('emotion_combinations')
-      .where('emotions', '==', sorted)
-      .limit(1)
-      .get();
+    const docRef = firestore.collection('emotion_combinations').doc(sortedKey);
+    const doc = await docRef.get();
 
-    if (snapshot.empty) {
+    if (!doc.exists) {
       throw new NotFoundException('해당 감정 조합 이미지가 없습니다.');
     }
 
-    const data = snapshot.docs[0].data();
-    return { imageUrl: data.imageUrl };
+    const data = doc.data();
+    return { imageUrl: data!.imageUrl };
   }
 }

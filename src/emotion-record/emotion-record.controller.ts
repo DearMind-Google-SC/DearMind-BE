@@ -10,6 +10,7 @@ import {
     Patch,
     BadRequestException,
     Delete,
+    NotFoundException,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { EmotionRecordService } from './emotion-record.service';
@@ -50,6 +51,7 @@ export class EmotionRecordController {
     @UseGuards(AuthGuard)
     @ApiBearerAuth()
     @ApiOperation({ summary: '감정 타입 업데이트' })
+    @ApiBody({ type: UpdateEmotionTypeDto })
     @ApiResponse({ status: 200, description: '감정 타입 업데이트 성공' })
     @ApiResponse({ status: 400, description: '요청 형식 오류' })
     @ApiResponse({ status: 404, description: '해당 감정 기록 없음 또는 권한 없음' })
@@ -146,8 +148,11 @@ export class EmotionRecordController {
     @ApiResponse({ status: 200, description: '조합 이미지 반환 성공' })
     @ApiResponse({ status: 404, description: '해당 날짜 감정 없음 또는 이미지 없음' })
     async getComboIconByDate(@Req() req: Request, @Query('date') dateStr: string) {
-        const emotionTypes = await this.emotionService.getEmotionTypesByDate(req.user!.uid, dateStr);
-        return this.comboIconService.getCombinationIcon(emotionTypes.emotionTypes);
+        const { emotionTypes } = await this.emotionService.getEmotionTypesByDate(req.user!.uid, dateStr);
+        if (!emotionTypes || emotionTypes.length === 0) {
+            throw new NotFoundException('해당 날짜에 감정 기록이 없습니다.');
+        }
+        return this.comboIconService.getCombinationIcon(emotionTypes);
     }
 
     @Get('monthly-emotion-type-count')

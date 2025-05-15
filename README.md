@@ -52,7 +52,7 @@ cd DearMind-BE
 
 ```bash
 npm install
-
+```
 
 ### 3. Setup Environment Variables
 
@@ -64,7 +64,7 @@ FIREBASE_API_KEY=your_firebase_api_key
 FIREBASE_PROJECT_ID=your_project_id
 GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 AI_SERVER_URL=https://your-ai-server-url
-
+```
 
 ### 4. Run the Server
 
@@ -74,6 +74,7 @@ npm run start:dev
 
 # Production
 npm run start:prod
+```
 
 ---
 
@@ -83,6 +84,7 @@ Once the server is running, access the API docs at:
 
 ```bash
 http://localhost:3000/api
+```
 
 ---
 

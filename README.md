@@ -1,6 +1,6 @@
 # DearMind-BE
 
-NestJS 백엔드 서버 for DearMind - Google Solution Challenge 2025
+NestJS BackEnd sever for DearMind - Google Solution Challenge 2025
 
 <p align="center">
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>

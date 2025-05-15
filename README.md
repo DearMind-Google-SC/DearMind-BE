@@ -46,7 +46,7 @@ This repository contains the **NestJS backend server**, which supports:
 ```bash
 git clone https://github.com/DearMind-Google-SC/DearMind-BE.git
 cd DearMind-BE
-
+```
 
 ### 2. Install Dependencies
 

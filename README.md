@@ -77,7 +77,7 @@ npm run start:prod
 
 ---
 
-### 📘 API Documentation
+## 📘 API Documentation
 
 Once the server is running, access the API docs at:
 
@@ -86,13 +86,13 @@ http://localhost:3000/api
 
 ---
 
-### 🚢 Deployment
+## 🚢 Deployment
 
 This backend is deployed on Render, with automatic deployment triggered via GitHub Actions on push to the main branch.
 
 ---
 
-### 👥 Contributors
+## 👥 Contributors
 
 - PM & Backend: Minseon Kang (강민선)
 
@@ -100,6 +100,6 @@ This backend is deployed on Render, with automatic deployment triggered via GitH
 
 ---
 
-### 📄 License
+## 📄 License
 
 This project is licensed under the MIT License.

@@ -90,8 +90,7 @@ http://localhost:3000/api
 
 ## 🚢 Deployment
 
-This backend is deployed on Render.  
-Deployment is triggered manually via the “Deploy latest commit” button in the Render dashboard after pushing to the `main` branch.
+This backend is deployed on Render.
 
 ---
 

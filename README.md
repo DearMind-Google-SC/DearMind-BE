@@ -98,7 +98,7 @@ This backend is deployed on Render.
 
 - PM & Backend: Minseon Kang (강민선)
 
-- AI, Frontend, and Design: See full team credits in the project presentation
+- AI, Frontend, and Design: See full team credits in the project deck.
 
 ---
 
